@@ -9,7 +9,7 @@ $(out)/%: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 %.valgrind: %
-	-valgrind --log-file=$(out)/.vgdump --track-origins=yes --leak-check=full --show-leak-kinds=definite ./$* $(o)
+	-valgrind --log-file=$(out)/.vgdump --tool=memcheck --leak-check=yes --show-reachable=yes ./$* $(o)
 	$(EDITOR) $(out)/.vgdump
 
 mkdir = @mkdir -p $(dir $@)
