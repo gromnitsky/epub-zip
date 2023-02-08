@@ -2,7 +2,9 @@ out := _out
 LDFLAGS := $(shell pkg-config --libs libarchive)
 CFLAGS := -g -Wall -Werror
 
-all: $(out)/epub-archive
+all: $(out)/epub-archive $(out)/epub-archive3
+
+$(out)/epub-archive3: LDFLAGS = $(shell pkg-config --libs libzip)
 
 $(out)/%: %.c
 	$(mkdir)
