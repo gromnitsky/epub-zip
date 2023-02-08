@@ -61,7 +61,7 @@ void epub(char *out, char **file_list, int file_list_len, MyError *error) {
   mimetype_add(&mz);
 
   for (char **file = file_list; *file; file++) {
-    warnx("adding %s", *file);
+    if (getenv("EPUB_ZIP_DEBUG")) warnx("adding %s", *file);
     error->file = *file;
     file_add(&mz, *file, error); if (error->message) break;
   }
