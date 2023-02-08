@@ -1,17 +1,14 @@
 out := _out
-LDFLAGS := $(shell pkg-config --libs libarchive)
+LDFLAGS := $(shell pkg-config --libs libzip)
 CFLAGS := -g -Wall -Werror
 
-all: $(out)/epub-archive $(out)/epub-archive3
-
-$(out)/epub-archive3: LDFLAGS = $(shell pkg-config --libs libzip)
+all: $(out)/epub-zip
 
 $(out)/%: %.c
-	$(mkdir)
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
+# make _out/epub-zip.valgrind o='_out/3.zip epub-zip.c'
 %.valgrind: %
 	-valgrind --log-file=$(out)/.vgdump --tool=memcheck --leak-check=yes --show-reachable=yes ./$* $(o)
 	$(EDITOR) $(out)/.vgdump
-
-mkdir = @mkdir -p $(dir $@)

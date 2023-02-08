@@ -47,8 +47,8 @@ void file_add(MyZip *mz, char *file, MyError *error) {
 }
 
 void mimetype_add(MyZip *mz) {
-  char *buf = "application/epub+zip";
-  mz->files[mz->idx] = zip_source_buffer(mz->arc, buf, strlen(buf), 0);
+  char *buf = strdup("application/epub+zip");
+  mz->files[mz->idx] = zip_source_buffer(mz->arc, buf, strlen(buf), 1);
   zip_file_add(mz->arc, "mimetype", mz->files[mz->idx++], ZIP_FL_ENC_UTF_8);
 }
 
