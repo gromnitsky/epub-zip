@@ -1,5 +1,4 @@
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <err.h>
 #include <libgen.h>
 #include <string.h>
@@ -10,65 +9,71 @@
 #include <zip.h>
 
 typedef struct { const char *file, *message; } MyError;
+typedef struct {
+  zip_t *arc;
+  zip_source_t **files;
+  int idx;
+} MyZip;
 
 char *ext(char *file) {
   char *dot = strrchr(file, '.');
   return (!dot || dot == file) ? "" : dot;
 }
 
-void set_compression(zip_t *arc, int idx, char *file) {
+void set_compression(MyZip *mz, char *file) {
   char *already_compressed = ".png.jpg.gif";
   if (0 != strlen(ext(file)) && strstr(already_compressed, ext(file)))
-    zip_set_file_compression(arc, idx, ZIP_CM_STORE, 0);
+    zip_set_file_compression(mz->arc, mz->idx, ZIP_CM_STORE, 0);
 }
 
-void file_add(zip_t *arc, zip_source_t **src, int idx,
-              char *file, MyError *error) {
+void file_add(MyZip *mz, char *file, MyError *error) {
   struct stat st; if (-1 == stat(file, &st)) {
     error->message = strerror(errno);
     return;
   }
 
-  if (S_ISDIR(st.st_mode)) {
-    zip_dir_add(arc, file, ZIP_FL_ENC_UTF_8);
-  } else if (S_ISREG(st.st_mode)) {
-    if (NULL == (src[idx] = zip_source_file(arc, file, 0, -1)) ||
-        zip_file_add(arc, file, src[idx], ZIP_FL_ENC_UTF_8) < 0) {
-      zip_source_free(src[idx]);
-      error->message = zip_strerror(arc);
+  if (S_ISREG(st.st_mode)) {
+    if (NULL == (mz->files[mz->idx] = zip_source_file(mz->arc, file, 0, -1)) ||
+        zip_file_add(mz->arc, file, mz->files[mz->idx], ZIP_FL_ENC_UTF_8) < 0) {
+      zip_source_free(mz->files[mz->idx]);
+      error->message = zip_strerror(mz->arc);
     } else {
-      set_compression(arc, idx, file);
+      set_compression(mz, file);
+      mz->idx++;
     }
-  } else
+  } else if (!S_ISDIR(st.st_mode)) {
     error->message = strerror(EINVAL);
+  }
 }
 
-void mimetype_add(zip_t *arc, zip_source_t **src) {
+void mimetype_add(MyZip *mz) {
   char *buf = "application/epub+zip";
-  src[0] = zip_source_buffer(arc, buf, strlen(buf), 0);
-  zip_file_add(arc, "mimetype", src[0], ZIP_FL_ENC_UTF_8);
+  mz->files[mz->idx] = zip_source_buffer(mz->arc, buf, strlen(buf), 0);
+  zip_file_add(mz->arc, "mimetype", mz->files[mz->idx++], ZIP_FL_ENC_UTF_8);
 }
 
 void epub(char *out, char **file_list, int file_list_len, MyError *error) {
-  zip_source_t *src[++file_list_len]; // +1 for "mimetype" entry
-  zip_t *arc = zip_open(out, ZIP_CREATE|ZIP_TRUNCATE, NULL);
+  MyZip mz = {
+    .arc = zip_open(out, ZIP_CREATE|ZIP_TRUNCATE, NULL),
+    .files = malloc((file_list_len + 1)*sizeof(zip_source_t*))
+  };
 
-  mimetype_add(arc, src);
+  mimetype_add(&mz);
 
-  for (int idx = 1; idx < file_list_len; idx++) {
-    char *file = file_list[idx-1];
-    warnx("adding %s", file);
-    error->file = file;
-    file_add(arc, src, idx, file, error); if (error->message) break;
+  for (char **file = file_list; *file; file++) {
+    warnx("adding %s", *file);
+    error->file = *file;
+    file_add(&mz, *file, error); if (error->message) break;
   }
 
   if (!error->message) {
-    if (zip_close(arc) < 0) error->message = zip_strerror(arc);
+    if (zip_close(mz.arc) < 0) error->message = zip_strerror(mz.arc);
   }
   if (error->message) {
-    zip_discard(arc);
+    zip_discard(mz.arc);
     unlink(out);
   }
+  free(mz.files);
 }
 
 int main(int argc, char **argv) {
