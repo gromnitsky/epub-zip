@@ -10,11 +10,17 @@
 #include <zip.h>
 
 typedef struct { const char *file, *message; } MyError;
-/* typedef struct { */
-/*   zip_t *arc; */
-/*   zip_source_t **file_list; */
-/*   int file_list_len; */
-/* } MyZip; */
+
+char *ext(char *file) {
+  char *dot = strrchr(file, '.');
+  return (!dot || dot == file) ? "" : dot;
+}
+
+void set_compression(zip_t *arc, int idx, char *file) {
+  char *already_compressed = ".png.jpg.gif";
+  if (0 != strlen(ext(file)) && strstr(already_compressed, ext(file)))
+    zip_set_file_compression(arc, idx, ZIP_CM_STORE, 0);
+}
 
 void file_add(zip_t *arc, zip_source_t **src, int idx,
               char *file, MyError *error) {
@@ -23,18 +29,18 @@ void file_add(zip_t *arc, zip_source_t **src, int idx,
     return;
   }
 
-  //  set_compression(arc, src, idx, file);
   if (S_ISDIR(st.st_mode)) {
-    /* do nothing */
+    zip_dir_add(arc, file, ZIP_FL_ENC_UTF_8);
   } else if (S_ISREG(st.st_mode)) {
     if (NULL == (src[idx] = zip_source_file(arc, file, 0, -1)) ||
         zip_file_add(arc, file, src[idx], ZIP_FL_ENC_UTF_8) < 0) {
       zip_source_free(src[idx]);
       error->message = zip_strerror(arc);
+    } else {
+      set_compression(arc, idx, file);
     }
-  } else {
+  } else
     error->message = strerror(EINVAL);
-  }
 }
 
 void mimetype_add(zip_t *arc, zip_source_t **src) {
@@ -44,7 +50,7 @@ void mimetype_add(zip_t *arc, zip_source_t **src) {
 }
 
 void epub(char *out, char **file_list, int file_list_len, MyError *error) {
-  zip_source_t *src[++file_list_len]; /* +1 for "mimetype" entry */
+  zip_source_t *src[++file_list_len]; // +1 for "mimetype" entry
   zip_t *arc = zip_open(out, ZIP_CREATE|ZIP_TRUNCATE, NULL);
 
   mimetype_add(arc, src);
@@ -59,10 +65,11 @@ void epub(char *out, char **file_list, int file_list_len, MyError *error) {
   if (!error->message) {
     if (zip_close(arc) < 0) error->message = zip_strerror(arc);
   }
-  if (error->message) unlink(out);
-  //  free(arc);
+  if (error->message) {
+    zip_discard(arc);
+    unlink(out);
+  }
 }
-
 
 int main(int argc, char **argv) {
   if (argc < 3) errx(1, "Usage: %s out.zip file ...", basename(argv[0]));
