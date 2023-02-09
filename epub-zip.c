@@ -8,10 +8,10 @@
 
 #include <zip.h>
 
-typedef struct { char *file, *message; } MyError;
+typedef struct { char *file; char message[256]; } MyError;
 void myerror_set(MyError *e, char *file, const char *msg) {
   e->file = file;
-  e->message = strdup(msg);
+  snprintf(e->message, 256, msg);
 }
 
 typedef struct {
@@ -69,13 +69,13 @@ void epub(char *out, char **file_list, int file_list_len, MyError *error) {
 
   for (char **file = file_list; *file; file++) {
     if (getenv("EPUB_ZIP_DEBUG")) warnx("queueing %s", *file);
-    file_add(&mz, *file, error); if (error->message) break;
+    file_add(&mz, *file, error); if (error->file) break;
   }
 
-  if (!error->message) {
+  if (!error->file) {           /* commit */
     if (zip_close(mz.arc) < 0) myerror_set(error, "zip", zip_strerror(mz.arc));
   }
-  if (error->message) {
+  if (error->file) {
     zip_discard(mz.arc);
     if (mz.idx > 1) unlink(out);
   }
@@ -87,9 +87,5 @@ int main(int argc, char **argv) {
 
   MyError error = {};
   epub(argv[1], argv+2, argc-2, &error);
-  if (error.message) {
-    warnx("%s: %s", error.file, error.message);
-    free(error.message);
-    return 1;
-  }
+  if (error.file) errx(1, "%s: %s", error.file, error.message);
 }
