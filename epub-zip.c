@@ -71,7 +71,7 @@ void epub(char *out, char **file_list, int file_list_len, MyError *error) {
   }
   if (error->message) {
     zip_discard(mz.arc);
-    unlink(out);
+    if (mz.idx > 1) unlink(out);
   }
   free(mz.files);
 }
