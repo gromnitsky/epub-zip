@@ -2,7 +2,7 @@ out := _out
 LDFLAGS := $(shell pkg-config --libs libzip)
 CFLAGS := -g -Wall -Werror
 
-all: $(out)/epub-zip
+all: $(addprefix $(out)/, epub-zip epub-zip-mimetype-fix)
 
 $(out)/%: %.c
 	@mkdir -p $(dir $@)
