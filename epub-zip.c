@@ -21,8 +21,8 @@ char *ext(char *file) {
 }
 
 void set_compression(MyZip *mz, char *file) {
-  char *already_compressed = ".png.jpg.gif";
-  if (0 != strlen(ext(file)) && strstr(already_compressed, ext(file)))
+  char *heystack = ".png.jpg.gif.", *e = ext(file), *p = strstr(heystack, e);
+  if (0 != strlen(e) && p && '.' == (p+strlen(e))[0])
     zip_set_file_compression(mz->arc, mz->idx, ZIP_CM_STORE, 0);
 }
 
