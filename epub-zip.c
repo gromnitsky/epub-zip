@@ -8,7 +8,9 @@
 
 #include <zip.h>
 
-typedef struct { const char *file, *message; } MyError;
+typedef struct { char *file, *message; } MyError;
+void myerror_set_err(MyError *e, const char *msg) { e->message = strdup(msg); }
+
 typedef struct {
   zip_t *arc;
   zip_source_t **files;
@@ -28,7 +30,7 @@ void set_compression(MyZip *mz, char *file) {
 
 void file_add(MyZip *mz, char *file, MyError *error) {
   struct stat st; if (-1 == stat(file, &st)) {
-    error->message = strerror(errno);
+    myerror_set_err(error, strerror(errno));
     return;
   }
 
@@ -36,14 +38,12 @@ void file_add(MyZip *mz, char *file, MyError *error) {
     if (NULL == (mz->files[mz->idx] = zip_source_file(mz->arc, file, 0, -1)) ||
         zip_file_add(mz->arc, file, mz->files[mz->idx], ZIP_FL_ENC_UTF_8) < 0) {
       zip_source_free(mz->files[mz->idx]);
-      error->message = zip_strerror(mz->arc);
-    } else {
-      set_compression(mz, file);
-      mz->idx++;
+      myerror_set_err(error, zip_strerror(mz->arc));
+      return;
     }
-  } else if (!S_ISDIR(st.st_mode)) {
-    error->message = strerror(EINVAL);
-  }
+    set_compression(mz, file);
+    mz->idx++;
+  } else if (!S_ISDIR(st.st_mode)) myerror_set_err(error, strerror(EINVAL));
 }
 
 void mimetype_add(MyZip *mz) {
@@ -67,7 +67,7 @@ void epub(char *out, char **file_list, int file_list_len, MyError *error) {
   }
 
   if (!error->message) {
-    if (zip_close(mz.arc) < 0) error->message = zip_strerror(mz.arc);
+    if (zip_close(mz.arc) < 0) myerror_set_err(error, zip_strerror(mz.arc));
   }
   if (error->message) {
     zip_discard(mz.arc);
@@ -81,5 +81,9 @@ int main(int argc, char **argv) {
 
   MyError error = {};
   epub(argv[1], argv+2, argc-2, &error);
-  if (error.message) errx(1, "%s: %s", error.file, error.message);
+  if (error.message) {
+    warnx("%s: %s", error.file, error.message);
+    free(error.message);
+    return 1;
+  }
 }
