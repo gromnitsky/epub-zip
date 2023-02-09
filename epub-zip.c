@@ -9,7 +9,10 @@
 #include <zip.h>
 
 typedef struct { char *file, *message; } MyError;
-void myerror_set_err(MyError *e, const char *msg) { e->message = strdup(msg); }
+void myerror_set(MyError *e, char *file, const char *msg) {
+  e->file = file;
+  e->message = strdup(msg);
+}
 
 typedef struct {
   zip_t *arc;
@@ -30,7 +33,7 @@ void set_compression(MyZip *mz, char *file) {
 
 void file_add(MyZip *mz, char *file, MyError *error) {
   struct stat st; if (-1 == stat(file, &st)) {
-    myerror_set_err(error, strerror(errno));
+    myerror_set(error, file, strerror(errno));
     return;
   }
 
@@ -38,12 +41,12 @@ void file_add(MyZip *mz, char *file, MyError *error) {
     if (NULL == (mz->files[mz->idx] = zip_source_file(mz->arc, file, 0, -1)) ||
         zip_file_add(mz->arc, file, mz->files[mz->idx], ZIP_FL_ENC_UTF_8) < 0) {
       zip_source_free(mz->files[mz->idx]);
-      myerror_set_err(error, zip_strerror(mz->arc));
+      myerror_set(error, file, zip_strerror(mz->arc));
       return;
     }
     set_compression(mz, file);
     mz->idx++;
-  } else if (!S_ISDIR(st.st_mode)) myerror_set_err(error, strerror(EINVAL));
+  } else if (!S_ISDIR(st.st_mode)) myerror_set(error, file, strerror(EINVAL));
 }
 
 void mimetype_add(MyZip *mz) {
@@ -57,17 +60,20 @@ void epub(char *out, char **file_list, int file_list_len, MyError *error) {
     .arc = zip_open(out, ZIP_CREATE|ZIP_TRUNCATE, NULL),
     .files = malloc((file_list_len + 1)*sizeof(zip_source_t*))
   };
+  if (!mz.arc) {
+    myerror_set(error, out, "failure to create");
+    return;
+  }
 
   mimetype_add(&mz);
 
   for (char **file = file_list; *file; file++) {
-    if (getenv("EPUB_ZIP_DEBUG")) warnx("adding %s", *file);
-    error->file = *file;
+    if (getenv("EPUB_ZIP_DEBUG")) warnx("queueing %s", *file);
     file_add(&mz, *file, error); if (error->message) break;
   }
 
   if (!error->message) {
-    if (zip_close(mz.arc) < 0) myerror_set_err(error, zip_strerror(mz.arc));
+    if (zip_close(mz.arc) < 0) myerror_set(error, "zip", zip_strerror(mz.arc));
   }
   if (error->message) {
     zip_discard(mz.arc);
