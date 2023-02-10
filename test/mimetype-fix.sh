@@ -1,6 +1,8 @@
 #!/bin/sh
 # shellcheck disable=3043
 
+export EPUB_ZIP_DEBUG=1
+
 setUp() {
     zip -rq _out/1.zip test/data
     local dir="`pwd`/_out"

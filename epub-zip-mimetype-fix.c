@@ -2,6 +2,7 @@
 #include <libgen.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include <zip.h>
 
@@ -16,7 +17,8 @@ void swap(zip_t *arc, int a, int b) {
   zip_source_t *a_src = zip_source_zip_create(arc, a, 0, 0, -1, NULL);
   const char *b_name = zip_get_name(arc, b, 0);
   zip_source_t *b_src = zip_source_zip_create(arc, b, 0, 0, -1, NULL);
-  warnx("swapping %d (%s) with %d (%s)", a, a_name, b, b_name);
+  if (getenv("EPUB_ZIP_DEBUG"))
+    warnx("swapping %d (%s) with %d (%s)", a, a_name, b, b_name);
 
   zip_file_replace(arc, a, b_src, ZIP_FL_ENC_UTF_8);
   zip_file_replace(arc, b, a_src, ZIP_FL_ENC_UTF_8);
@@ -42,7 +44,7 @@ void fix(char *file, char *error) {
 
   if (0 != idx) swap(arc, 0, idx);
 
-  warnx("fixing index 0");
+  if (getenv("EPUB_ZIP_DEBUG")) warnx("fixing index 0");
   fix_index_zero(arc);
 
   if (zip_close(arc) < 0) snprintf(error, BUFSIZ, zip_strerror(arc));

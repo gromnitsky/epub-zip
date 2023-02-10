@@ -1,13 +1,15 @@
 ~~~
 $ wc -l *.c
   91 epub-zip.c
-  57 epub-zip-mimetype-fix.c
- 148 total
+  59 epub-zip-mimetype-fix.c
+ 150 total
 ~~~
+
+Set `EPUB_ZIP_DEBUG=1` env var for verbose mode.
 
 ## epub-zip
 
-Makes a correct EPUB 3 OCF ZIP Container:
+Makes a proper EPUB 3 OCF ZIP Container:
 
 * automatically adds `mimetype` file entry as a 1st file without
   compression & extra fields;
