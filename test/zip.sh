@@ -15,7 +15,8 @@ test_dirs_are_ignored() {
 b- defX epub-zip.c
 b- stor test/data/35478.png
 b- defX test/data/dir/file1
-b- defX test/data/dir/file2.p' "$r"
+b- defX test/data/dir/file2.p
+b- stor test/data/mimetype' "$r"
 
 }
 
